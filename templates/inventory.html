@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ro">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Inventar {{ depozit.nume }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+  <div class="container py-4">
+    <div class="d-flex justify-content-between align-items-end mb-4">
+      <div>
+        <a href="/" class="text-decoration-none text-muted small"><i class="fas fa-chevron-left"></i> Dashboard</a>
+        <h2 class="fw-bold">{{ depozit.nume }}</h2>
+      </div>
+      <button class="btn btn-success btn-lg rounded-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#addModal">
+        <i class="fas fa-plus me-2"></i> Adaugă Articol
+      </button>
+    </div>
+
+    <div class="search-wrapper mb-4">
+      <i class="fas fa-search ps-3 text-muted"></i>
+      <input type="text" id="searchInput" class="form-control form-control-lg border-0 shadow-sm"
+        placeholder="Caută după orice (Brand, Tip, Culoare, Notă)..." style="padding-left: 3rem;">
+    </div>
+
+    <div class="table-responsive table-modern shadow-sm bg-white rounded-4">
+      <table class="table table-hover align-middle mb-0" id="inventoryTable">
+        <thead class="bg-dark text-white">
+          <tr>
+            <th class="ps-4">Poză</th>
+            <th>Detalii Produs</th>
+            <th>Brand</th>
+            <th>Tip AI</th>
+            <th>Culoare</th>
+            <th class="text-center">Acțiuni</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for haina in haine %}
+          <tr class="inventory-row">
+            <td class="ps-4">
+              <a href="{{ haina.imagine_url }}" target="_blank">
+                <img src="{{ haina.imagine_url }}" class="img-preview shadow-sm"
+                  style="width:70px; height:70px; object-fit:cover; border-radius:10px;"
+                  onerror="this.src='https://placehold.co/80x80/6366f1/ffffff?text=Haina'">
+              </a>
+            </td>
+            <td>
+              <div class="fw-bold">{{ haina.nume }}</div>
+              <div class="text-muted small fst-italic">{{ haina.descriere_ai }}</div>
+            </td>
+            <td><span class="badge rounded-pill bg-primary">{{ haina.brand }}</span></td>
+            <td><span class="badge bg-light text-primary border border-primary rounded-pill px-3">{{ haina.tip_produs
+                }}</span></td>
+            <td>{{ haina.culoare }}</td>
+            <td>
+              <div class="d-flex justify-content-center gap-2">
+                <button class="btn btn-sm btn-light border rounded-3" data-bs-toggle="modal"
+                  data-bs-target="#editModal{{ loop.index }}">
+                  <i class="fas fa-pen text-warning"></i>
+                </button>
+                <form action="/delete/{{ depozit.id }}/{{ haina.key.id }}" method="post" class="m-0">
+                  <button type="submit" class="btn btn-sm btn-light border rounded-3"
+                    onclick="return confirm('Ștergi produsul?')">
+                    <i class="fas fa-trash text-danger"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% for haina in haine %}
+  <div class="modal fade" id="editModal{{ loop.index }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <form action="/edit/{{ depozit.id }}/{{ haina.key.id }}" method="post" class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Editează Produs</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Nume / Notă Angajat</label>
+            <input type="text" name="nume" value="{{ haina.nume }}" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Brand</label>
+            <input type="text" name="brand" value="{{ haina.brand }}" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Tip Produs</label>
+            <input type="text" name="tip_produs" value="{{ haina.tip_produs }}" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Culoare</label>
+            <input type="text" name="culoare" value="{{ haina.culoare }}" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Descriere Smart AI</label>
+            <textarea name="descriere_ai" class="form-control" rows="3">{{ haina.descriere_ai }}</textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Anulează</button>
+          <button type="submit" class="btn btn-primary px-4">Salvează</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+
+  <div class="modal fade" id="addModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <form action="/upload/{{ depozit.id }}" method="post" enctype="multipart/form-data" class="modal-content">
+        <div class="modal-header bg-success text-white">
+          <h5 class="modal-title">Scanare Produs Nou</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-modal="modal"></button>
+        </div>
+        <div class="modal-body text-center">
+          <p class="text-muted small mb-4">Alege o poză pentru analiza automată Google Vision AI</p>
+          <input type="text" name="descriere" class="form-control mb-3"
+            placeholder="Notă scurtă (ex: Lot nou primăvară)" required>
+          <input type="file" name="file" class="form-control" accept="image/*" required>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success w-100 py-2">Încarcă și Analizează</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Live Search
+    document.getElementById('searchInput').addEventListener('keyup', function () {
+      let filter = this.value.toLowerCase();
+      document.querySelectorAll('.inventory-row').forEach(row => {
+        row.style.display = row.innerText.toLowerCase().includes(filter) ? '' : 'none';
+      });
+    });
+  </script>
+</body>
+
+</html>

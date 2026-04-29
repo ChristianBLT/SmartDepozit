@@ -10,6 +10,7 @@ function initDashboardCharts(statsData) {
 
         const ctx = canvas.getContext('2d');
         const data = statsData[depozitId];
+        const total = (data.Pantof || 0) + (data.Haine || 0) + (data.Altele || 0);
 
         new Chart(ctx, {
             type: 'doughnut',
@@ -37,14 +38,17 @@ function initDashboardCharts(statsData) {
                         backgroundColor: '#1e293b',
                         padding: 12,
                         callbacks: {
-                            label: (item) => ` ${item.label}: ${item.raw} articole`
+                            label: (item) => {
+                                const percent = total ? Math.round((item.raw / total) * 100) : 0;
+                                return ` ${item.label}: ${item.raw} articole (${percent}%)`;
+                            }
                         }
                     }
                 },
                 cutout: '72%',
                 responsive: true,
                 maintainAspectRatio: false,
-                animation: { animateScale: true, duration: 1000 }
+                animation: { animateScale: true, duration: 1000, easing: 'easeOutBack' }
             }
         });
     });

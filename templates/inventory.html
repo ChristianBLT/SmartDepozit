@@ -11,7 +11,7 @@
 
 <body>
   <div class="container py-4">
-    <div class="d-flex justify-content-between align-items-end mb-4">
+    <div class="d-flex justify-content-between align-items-end mb-4 inventory-header">
       <div>
         <a href="/" class="text-decoration-none text-muted small"><i class="fas fa-chevron-left"></i> Dashboard</a>
         <h2 class="fw-bold">{{ depozit.nume }}</h2>
@@ -26,10 +26,11 @@
       <input type="text" id="searchInput" class="form-control form-control-lg border-0 shadow-sm"
         placeholder="Caută după orice (Brand, Tip, Culoare, Notă)..." style="padding-left: 3rem;">
     </div>
+    <p class="results-counter text-muted small mb-3"><span id="visibleCount">{{ haine|length }}</span> produse afișate</p>
 
     <div class="table-responsive table-modern shadow-sm bg-white rounded-4">
       <table class="table table-hover align-middle mb-0" id="inventoryTable">
-        <thead class="bg-dark text-white">
+        <thead class="table-head-modern">
           <tr>
             <th class="ps-4">Poză</th>
             <th>Detalii Produs</th>
@@ -122,7 +123,7 @@
       <form action="/upload/{{ depozit.id }}" method="post" enctype="multipart/form-data" class="modal-content">
         <div class="modal-header bg-success text-white">
           <h5 class="modal-title">Scanare Produs Nou</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-modal="modal"></button>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body text-center">
           <p class="text-muted small mb-4">Alege o poză pentru analiza automată Google Vision AI</p>
@@ -140,11 +141,18 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     // Live Search
+    const allRows = Array.from(document.querySelectorAll('.inventory-row'));
+    const visibleCountEl = document.getElementById('visibleCount');
+
     document.getElementById('searchInput').addEventListener('keyup', function () {
       let filter = this.value.toLowerCase();
-      document.querySelectorAll('.inventory-row').forEach(row => {
-        row.style.display = row.innerText.toLowerCase().includes(filter) ? '' : 'none';
+      let visible = 0;
+      allRows.forEach(row => {
+        const show = row.innerText.toLowerCase().includes(filter);
+        row.style.display = show ? '' : 'none';
+        if (show) visible += 1;
       });
+      visibleCountEl.textContent = visible;
     });
   </script>
 </body>

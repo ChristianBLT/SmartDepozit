@@ -21,12 +21,39 @@
       </button>
     </div>
 
+    <div class="row g-3 mb-4">
+      <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white d-flex flex-row align-items-center">
+          <div class="bg-primary bg-opacity-10 text-primary rounded-3 p-3 me-3">
+            <i class="fas fa-boxes fa-2x"></i>
+          </div>
+          <div>
+            <div class="text-muted small fw-semibold text-uppercase">Total Articole în Stoc</div>
+            <h3 class="fw-bold text-dark mb-0">{{ total_produse }}</h3>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white d-flex flex-row align-items-center">
+          <div class="bg-success bg-opacity-10 text-success rounded-3 p-3 me-3">
+            <i class="fas fa-wallet fa-2x"></i>
+          </div>
+          <div>
+            <div class="text-muted small fw-semibold text-uppercase">Valoare Totală Estimată</div>
+            <h3 class="fw-bold text-success mb-0">{{ pret_total }} RON</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="search-wrapper mb-4">
       <i class="fas fa-search ps-3 text-muted"></i>
       <input type="text" id="searchInput" class="form-control form-control-lg border-0 shadow-sm"
-        placeholder="Caută după orice (Brand, Tip, Culoare, Notă)..." style="padding-left: 3rem;">
+        placeholder="Caută după orice (Brand, Tip, Culoare, Mărime, Preț)..." style="padding-left: 3rem;">
     </div>
-    <p class="results-counter text-muted small mb-3"><span id="visibleCount">{{ haine|length }}</span> produse afișate</p>
+
+    <p class="results-counter text-muted small mb-3"><span id="visibleCount">{{ haine|length }}</span> produse afișate
+    </p>
 
     <div class="table-responsive table-modern shadow-sm bg-white rounded-4">
       <table class="table table-hover align-middle mb-0" id="inventoryTable">
@@ -37,6 +64,8 @@
             <th>Brand</th>
             <th>Tip AI</th>
             <th>Culoare</th>
+            <th>Mărime</th>
+            <th>Preț Estimat</th>
             <th class="text-center">Acțiuni</th>
           </tr>
         </thead>
@@ -58,6 +87,8 @@
             <td><span class="badge bg-light text-primary border border-primary rounded-pill px-3">{{ haina.tip_produs
                 }}</span></td>
             <td>{{ haina.culoare }}</td>
+            <td><strong class="text-dark">{{ haina.marime|default('Standard') }}</strong></td>
+            <td><span class="badge bg-success px-3 py-2 fs-6">{{ haina.pret_estimat|default('50.0') }} RON</span></td>
             <td>
               <div class="d-flex justify-content-center gap-2">
                 <button class="btn btn-sm btn-light border rounded-3" data-bs-toggle="modal"
@@ -105,6 +136,15 @@
             <input type="text" name="culoare" value="{{ haina.culoare }}" class="form-control">
           </div>
           <div class="mb-3">
+            <label class="form-label">Mărime</label>
+            <input type="text" name="marime" value="{{ haina.marime|default('Standard') }}" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Preț Estimat (RON)</label>
+            <input type="number" step="0.01" name="pret_estimat" value="{{ haina.pret_estimat|default('50.0') }}"
+              class="form-control">
+          </div>
+          <div class="mb-3">
             <label class="form-label">Descriere Smart AI</label>
             <textarea name="descriere_ai" class="form-control" rows="3">{{ haina.descriere_ai }}</textarea>
           </div>
@@ -122,17 +162,43 @@
     <div class="modal-dialog">
       <form action="/upload/{{ depozit.id }}" method="post" enctype="multipart/form-data" class="modal-content">
         <div class="modal-header bg-success text-white">
-          <h5 class="modal-title">Scanare Produs Nou</h5>
+          <h5 class="modal-title"><i class="fas fa-layer-group me-2"></i>Analiză Combinată Inteligentă (Multimodală)
+          </h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
         </div>
-        <div class="modal-body text-center">
-          <p class="text-muted small mb-4">Alege o poză pentru analiza automată Google Vision AI</p>
-          <input type="text" name="descriere" class="form-control mb-3"
-            placeholder="Notă scurtă (ex: Lot nou primăvară)" required>
-          <input type="file" name="file" class="form-control" accept="image/*" required>
+        <div class="modal-body text-start">
+          <p class="text-muted small mb-3">Sistemul utilizează o arhitectură hibridă distribuită. Puteți încărca una sau
+            ambele imagini pentru o analiză completă și un preț precis.</p>
+
+          <div class="mb-3">
+            <label for="descriere" class="form-label fw-bold">Notă/Descriere manuală (Opțional):</label>
+            <input type="text" name="descriere" id="descriere" class="form-control"
+              placeholder="Ex: Lot nou primăvară, stoc limitat">
+          </div>
+
+          <div class="mb-3 p-3 border rounded bg-light">
+            <label class="form-label fw-bold text-primary"><i class="fab fa-google me-2"></i>1. Imagine Generală
+              Produs</label>
+            <input type="file" name="file_produs" class="form-control" accept="image/*">
+            <div class="form-text small text-muted">Trimisă la <strong>Google Vision AI</strong> pentru detectarea
+              vizuală a categoriei și culorilor hainei.</div>
+          </div>
+
+          <div class="mb-3 p-3 border rounded bg-light">
+            <label class="form-label fw-bold text-warning"><i class="fab fa-aws me-2"></i>2. Imagine Detaliu
+              Etichetă</label>
+            <input type="file" name="file_eticheta" class="form-control" accept="image/*">
+            <div class="form-text small text-muted">Trimisă la <strong>AWS Textract (OCR)</strong> pentru extragerea
+              textului, mărimii exacte și a brandului din țesătură.</div>
+          </div>
+
+          <div class="text-center bg-dark text-white rounded p-2 small mt-2">
+            <i class="fas fa-calculator text-success me-1"></i> Datele vor fi agregate automat de un Pricing Engine
+            serverless din Google Functions.
+          </div>
         </div>
         <div class="modal-footer">
-          <button type="submit" class="btn btn-success w-100 py-2">Încarcă și Analizează</button>
+          <button type="submit" class="btn btn-success w-100 py-2 fw-bold">Lansează Analiza Hibridă Cloud</button>
         </div>
       </form>
     </div>

@@ -1,0 +1,16 @@
+.gcloudignore
+.git
+.gitignore
+
+# Python pycache:
+
+**pycache**/
+
+# Ignored by the build system
+
+/setup.cfg
+
+# ADĂUGA ASTA:
+
+env/
+venv/

@@ -65,10 +65,6 @@ body {
  box-shadow: 0 12px 20px rgba(15, 23, 42, 0.08);
 }
 
-.depozit-card-horizontal::after {
- content: none;
-}
-
 .warehouse-icon {
  background: linear-gradient(135deg, #6366f1, #4f46e5);
 }

@@ -1,9 +1,18 @@
+import datetime
 import os
+
 import boto3
 import requests
-import datetime
-from flask import Flask, render_template, request, redirect, url_for
-from google.cloud import datastore, storage, vision, translate_v2 as translate
+from flask import Flask, redirect, render_template, request, url_for
+from google.cloud import datastore, storage, translate_v2 as translate, vision
+
+from refactor_helpers import (
+    clean_filename,
+    detect_basic_color_from_rgb,
+    extract_size_from_text,
+    guess_tip_ro_from_labels_en,
+    is_keyword_match,
+)
 
 app = Flask(__name__)
 
@@ -22,6 +31,32 @@ AWS_SECRET_KEY = "jkuCq7XBgR9pOKS8Hf0Y8SJ0Ow9LkwRzDiX1qsXL"
 AWS_REGION = "us-east-1"
 GCP_CLOUD_FUNCTION_URL = "https://estimare-pret-functie-208351289879.europe-west1.run.app"
 
+KEYWORDS_PANTOFI = [
+    "pantof",
+    "adida",
+    "tenisi",
+    "incaltaminte",
+    "slapi",
+    "ghete",
+    "bocanci",
+    "shoes",
+    "sneakers",
+]
+KEYWORDS_HAINE = [
+    "pantaloni",
+    "geaca",
+    "hanorac",
+    "maieu",
+    "tricou",
+    "blugi",
+    "jacheta",
+    "pulover",
+    "camasa",
+    "clothing",
+    "shirt",
+    "jacket",
+]
+KNOWN_BRANDS = ["nike", "adidas", "puma", "zara", "gucci"]
 # Inițializare client AWS
 aws_textract_client = boto3.client(
     'textract',
@@ -47,12 +82,10 @@ def dashboard():
         tipuri = [h.get("tip_produs", "Articol").lower() for h in haine_depozit]
         
         # CATEGORIA: PANTOFI
-        keywords_pantofi = ["pantof", "adida", "tenisi", "incaltaminte", "slapi", "ghete", "bocanci", "shoes", "sneakers"]
-        pantofi_count = sum(1 for t in tipuri if any(k in t for k in keywords_pantofi))
+        pantofi_count = sum(1 for t in tipuri if is_keyword_match(t, KEYWORDS_PANTOFI))
         
         # CATEGORIA: HAINE
-        keywords_haine = ["pantaloni", "geaca", "hanorac", "maieu", "tricou", "blugi", "jacheta", "pulover", "camasa", "clothing", "shirt", "jacket"]
-        haine_count = sum(1 for t in tipuri if any(k in t for k in keywords_haine))
+        haine_count = sum(1 for t in tipuri if is_keyword_match(t, KEYWORDS_HAINE))
         
         # CATEGORIA: ALTELE (Accesorii)
         altele_count = len(tipuri) - (pantofi_count + haine_count)
@@ -114,7 +147,7 @@ def upload(depozit_id):
         motoare_procesare.append("GOOGLE_VISION")
         
         # Salvarea imaginii principale în Google Cloud Storage
-        clean_name = "".join(x for x in file_produs.filename if x.isalnum() or x in "._- ")
+        clean_name = clean_filename(file_produs.filename)
         blob_name = f"{depozit_id}/{timestamp}_produs_{clean_name}"
         blob = bucket.blob(blob_name)
         blob.upload_from_string(file_content_produs, content_type=file_produs.content_type)
@@ -129,14 +162,7 @@ def upload(depozit_id):
                 colors = props_res.image_properties_annotation.dominant_colors.colors
                 top_color = colors[0].color
                 r, g, b = top_color.red, top_color.green, top_color.blue
-                brightness = (r + g + b) / 3
-                if brightness < 45: culoare_finala = "Negru"
-                elif brightness > 215: culoare_finala = "Alb"
-                elif r > 150 and g < 100 and b < 100: culoare_finala = "Roșu"
-                elif b > 150 and r < 120: culoare_finala = "Albastru"
-                elif g > 150 and r < 120: culoare_finala = "Verde"
-                elif abs(r - g) < 20 and abs(g - b) < 20: culoare_finala = "Gri"
-                else: culoare_finala = "Multicolor"
+                culoare_finala = detect_basic_color_from_rgb(r, g, b)
         except Exception as e:
             print(f"Eroare detecție culoare Google Vision: {e}")
 
@@ -144,16 +170,11 @@ def upload(depozit_id):
         try:
             label_res = vision_client.label_detection(image=image)
             labels_en = [l.description.lower() for l in label_res.label_annotations]
-            
-            if any(x in labels_en for x in ["sunglasses", "eyewear", "glasses"]): tip_ro = "Ochelari"
-            elif any(x in labels_en for x in ["sneakers", "shoe", "footwear", "boot"]): tip_ro = "Pantof"
-            elif any(x in labels_en for x in ["jacket", "coat", "outerwear"]): tip_ro = "Geacă"
-            elif any(x in labels_en for x in ["hat", "cap", "fedora"]): tip_ro = "Pălărie"
-            elif any(x in labels_en for x in ["t-shirt", "shirt", "top"]): tip_ro = "Tricou"
-            elif any(x in labels_en for x in ["pants", "trousers", "jeans"]): tip_ro = "Pantaloni"
-            else:
-                if labels_en:
-                    tip_ro = translate_client.translate(labels_en[0], target_language="ro")["translatedText"].capitalize()
+            tip_ro = guess_tip_ro_from_labels_en(labels_en)
+            if tip_ro == "Articol" and labels_en:
+                tip_ro = translate_client.translate(labels_en[0], target_language="ro")[
+                    "translatedText"
+                ].capitalize()
         except Exception as e:
             print(f"Eroare etichete Google Vision: {e}")
 
@@ -172,7 +193,7 @@ def upload(depozit_id):
 
         # Dacă utilizatorul NU a încărcat o poză de produs, o folosim pe cea a etichetei în tabelă
         if not img_url:
-            clean_name = "".join(x for x in file_eticheta.filename if x.isalnum() or x in "._- ")
+            clean_name = clean_filename(file_eticheta.filename)
             blob_name = f"{depozit_id}/{timestamp}_eticheta_{clean_name}"
             blob = bucket.blob(blob_name)
             blob.upload_from_string(file_content_eticheta, content_type=file_eticheta.content_type)
@@ -186,7 +207,7 @@ def upload(depozit_id):
                     text_eticheta += " " + item.get('Text', '').lower()
 
             # FUZIUNE DECIDĂ: Dacă eticheta text conține un brand, textul suprascrie decizia vizuală
-            for b in ["nike", "adidas", "puma", "zara", "gucci"]:
+            for b in KNOWN_BRANDS:
                 if b in text_eticheta:
                     brand_ai = b.capitalize()
                     break
@@ -201,10 +222,7 @@ def upload(depozit_id):
                 elif "shoes" in text_eticheta or "pantofi" in text_eticheta: tip_ro = "Pantof"
 
             # DETERMINARE MĂRIME (Specifică doar etichetei)
-            for m in ["XS", "S", "M", "L", "XL", "XXL"]:
-                if f"size {m.lower()}" in text_eticheta or f" {m.lower()} " in text_eticheta:
-                    marime_detectata = m
-                    break
+            marime_detectata = extract_size_from_text(text_eticheta)
                     
             if culoare_finala == "Multicolor":
                 culoare_finala = "Citită din text"

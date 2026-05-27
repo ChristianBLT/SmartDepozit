@@ -3,21 +3,27 @@ function initDashboardCharts(statsData) {
     const categories = ['Pantofi', 'Haine', 'Altele'];
     const colors = ['#6366f1', '#10b981', '#f59e0b'];
 
+    const safeNumber = (value) => Number(value || 0);
+    const percentOf = (part, total) => (total ? Math.round((part / total) * 100) : 0);
+
     // Loop prin toate depozitele primite în obiectul statsData
-    Object.keys(statsData).forEach(depozitId => {
+    for (const depozitId of Object.keys(statsData)) {
         const canvas = document.getElementById(`chart-${depozitId}`);
-        if (!canvas) return; // Dacă nu găsește canvas-ul, trece mai departe
+        if (!canvas) continue; // Dacă nu găsește canvas-ul, trece mai departe
 
         const ctx = canvas.getContext('2d');
         const data = statsData[depozitId];
-        const total = (data.Pantof || 0) + (data.Haine || 0) + (data.Altele || 0);
+        const pantof = safeNumber(data.Pantof);
+        const haine = safeNumber(data.Haine);
+        const altele = safeNumber(data.Altele);
+        const total = pantof + haine + altele;
 
         new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: categories,
                 datasets: [{
-                    data: [data.Pantof || 0, data.Haine || 0, data.Altele || 0],
+                    data: [pantof, haine, altele],
                     backgroundColor: colors,
                     borderWidth: 0,
                     hoverOffset: 15
@@ -39,7 +45,7 @@ function initDashboardCharts(statsData) {
                         padding: 12,
                         callbacks: {
                             label: (item) => {
-                                const percent = total ? Math.round((item.raw / total) * 100) : 0;
+                                const percent = percentOf(item.raw, total);
                                 return ` ${item.label}: ${item.raw} articole (${percent}%)`;
                             }
                         }
@@ -51,5 +57,5 @@ function initDashboardCharts(statsData) {
                 animation: { animateScale: true, duration: 1000, easing: 'easeOutBack' }
             }
         });
-    });
+    }
 }
